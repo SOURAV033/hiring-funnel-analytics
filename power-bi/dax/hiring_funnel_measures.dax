@@ -1,0 +1,432 @@
+-- ============================================================================
+-- HIRING FUNNEL ANALYTICS DASHBOARD
+-- ============================================================================
+-- Power BI DAX Measures
+-- Description: All calculated measures for the Power BI report
+-- ============================================================================
+
+-- ============================================================================
+-- BASIC KPI MEASURES
+-- ============================================================================
+
+-- Total Applications
+Total Applications = 
+    COUNTROWS(fact_application)
+
+-- Active Pipeline
+Active Pipeline = 
+    CALCULATE(
+        COUNTROWS(fact_application),
+        fact_application[current_status] = "Active"
+    )
+
+-- Total Hires
+Total Hires = 
+    CALCULATE(
+        COUNTROWS(fact_application),
+        fact_application[current_status] = "Accepted"
+    )
+
+-- Total Rejections
+Total Rejections = 
+    CALCULATE(
+        COUNTROWS(fact_application),
+        fact_application[current_status] = "Rejected"
+    )
+
+-- Total Withdrawals
+Total Withdrawals = 
+    CALCULATE(
+        COUNTROWS(fact_application),
+        fact_application[current_status] = "Withdrawn"
+    )
+
+-- ============================================================================
+-- CONVERSION RATE MEASURES
+-- ============================================================================
+
+-- Overall Conversion Rate (Application → Hire)
+Overall Conversion Rate = 
+    DIVIDE(
+        [Total Hires],
+        [Total Applications],
+        0
+    )
+
+-- Offer Acceptance Rate
+Offer Acceptance Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_offer), fact_offer[offer_status] = "Accepted"),
+        COUNTROWS(fact_offer),
+        0
+    )
+
+-- Stage-to-Stage Conversion Rate (parameterized)
+-- Usage: Create a disconnected table of stage pairs for slicer
+Stage Conversion Rate = 
+    VAR CurrentStageCount = COUNTROWS(fact_stage_transition)
+    VAR PrevStage = 
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            FILTER(
+                ALL(dim_stage),
+                dim_stage[stage_order] = MAX(dim_stage[stage_order]) - 1
+            )
+        )
+    RETURN
+        DIVIDE(CurrentStageCount, PrevStage, 0)
+
+-- Screening Pass Rate
+Screening Pass Rate = 
+    DIVIDE(
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            fact_stage_transition[to_stage_id] = 3  -- Phone Screen
+        ),
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            fact_stage_transition[to_stage_id] = 2   -- Resume Screening
+        ),
+        0
+    )
+
+-- Interview to Offer Rate
+Interview to Offer Rate = 
+    DIVIDE(
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            fact_stage_transition[to_stage_id] = 11  -- Offer Extended
+        ),
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            fact_stage_transition[to_stage_id] = 6   -- Technical Interview
+        ),
+        0
+    )
+
+-- ============================================================================
+-- TIME-TO-HIRE MEASURES
+-- ============================================================================
+
+-- Average Time to Hire (days)
+Avg Time to Hire = 
+    CALCULATE(
+        AVERAGEX(
+            FILTER(fact_application, fact_application[current_status] = "Accepted"),
+            fact_application[total_days_in_pipeline]
+        )
+    )
+
+-- Median Time to Hire
+Median Time to Hire = 
+    CALCULATE(
+        MEDIANX(
+            FILTER(fact_application, fact_application[current_status] = "Accepted"),
+            fact_application[total_days_in_pipeline]
+        )
+    )
+
+-- Average Days in Stage
+Avg Days in Stage = 
+    AVERAGEX(
+        fact_stage_transition,
+        fact_stage_transition[days_in_previous_stage]
+    )
+
+-- Average Time to Offer
+Avg Time to Offer = 
+    CALCULATE(
+        AVERAGEX(fact_offer, DATEDIFF(fact_application[application_date], fact_offer[offer_date], DAY))
+    )
+
+-- ============================================================================
+-- DROP-OFF MEASURES
+-- ============================================================================
+
+-- Overall Drop-off Rate
+Overall Drop-off Rate = 
+    1 - [Overall Conversion Rate]
+
+-- Stage Drop-off Count
+Stage Drop-off Count = 
+    VAR CurrentCount = COUNTROWS(fact_stage_transition)
+    VAR PrevCount = 
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            FILTER(
+                ALL(dim_stage),
+                dim_stage[stage_order] = MAX(dim_stage[stage_order]) - 1
+            )
+        )
+    RETURN
+        PrevCount - CurrentCount
+
+-- Stage Drop-off Rate
+Stage Drop-off Rate = 
+    VAR CurrentCount = COUNTROWS(fact_stage_transition)
+    VAR PrevCount = 
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            FILTER(
+                ALL(dim_stage),
+                dim_stage[stage_order] = MAX(dim_stage[stage_order]) - 1
+            )
+        )
+    RETURN
+        DIVIDE(PrevCount - CurrentCount, PrevCount, 0)
+
+-- Withdrawal Rate
+Withdrawal Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_application), fact_application[current_status] = "Withdrawn"),
+        [Total Applications],
+        0
+    )
+
+-- ============================================================================
+-- FUNNEL VISUALIZATION MEASURES
+-- ============================================================================
+
+-- Funnel Volume by Stage
+Funnel Volume = 
+    CALCULATE(
+        COUNTROWS(fact_stage_transition),
+        ALLEXCEPT(dim_stage, dim_stage[stage_name])
+    )
+
+-- Cumulative Conversion (from first stage)
+Cumulative Conversion = 
+    VAR CurrentVolume = [Funnel Volume]
+    VAR FirstStageVolume = 
+        CALCULATE(
+            COUNTROWS(fact_stage_transition),
+            FILTER(ALL(dim_stage), dim_stage[stage_order] = 1)
+        )
+    RETURN
+        DIVIDE(CurrentVolume, FirstStageVolume, 0)
+
+-- Funnel Survival Rate (formatted)
+Funnel Survival Rate = 
+    FORMAT([Cumulative Conversion], "0.0%")
+
+-- ============================================================================
+-- RECRUITER PERFORMANCE MEASURES
+-- ============================================================================
+
+-- Recruiter Hire Rate
+Recruiter Hire Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_application), fact_application[current_status] = "Accepted"),
+        COUNTROWS(fact_application),
+        0
+    )
+
+-- Recruiter Avg Time to Hire
+Recruiter Avg TTH = 
+    CALCULATE(
+        AVERAGEX(
+            FILTER(fact_application, fact_application[current_status] = "Accepted"),
+            fact_application[total_days_in_pipeline]
+        )
+    )
+
+-- Recruiter Pipeline Load
+Recruiter Pipeline Load = 
+    COUNTROWS(fact_application)
+
+-- ============================================================================
+-- SOURCE CHANNEL MEASURES
+-- ============================================================================
+
+-- Source Conversion Rate
+Source Conversion Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_application), fact_application[current_status] = "Accepted"),
+        COUNTROWS(fact_application),
+        0
+    )
+
+-- Source Quality Score (composite: conversion / avg_tth * 100)
+Source Quality Score = 
+    VAR ConvRate = [Source Conversion Rate]
+    VAR AvgTTH = 
+        CALCULATE(
+            AVERAGEX(
+                FILTER(fact_application, fact_application[current_status] = "Accepted"),
+                fact_application[total_days_in_pipeline]
+            )
+        )
+    RETURN
+        DIVIDE(ConvRate * 100, AvgTTH, 0)
+
+-- ============================================================================
+-- OFFER & COMPENSATION MEASURES
+-- ============================================================================
+
+-- Average Base Salary Offered
+Avg Base Salary = 
+    AVERAGE(fact_offer[base_salary_offered])
+
+-- Average Total Compensation
+Avg Total Comp = 
+    AVERAGE(fact_offer[total_compensation])
+
+-- Offer Decline Rate
+Offer Decline Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_offer), fact_offer[offer_status] = "Declined"),
+        COUNTROWS(fact_offer),
+        0
+    )
+
+-- Salary Acceptance Ratio (avg accepted / avg offered)
+Salary Acceptance Ratio = 
+    DIVIDE(
+        CALCULATE(AVERAGE(fact_offer[total_compensation]), fact_offer[offer_status] = "Accepted"),
+        AVERAGE(fact_offer[total_compensation]),
+        0
+    )
+
+-- ============================================================================
+-- QUALITY OF HIRE MEASURES
+-- ============================================================================
+
+-- 90-Day Retention Rate
+Retention Rate 90D = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_onboarding), fact_onboarding[first_90_day_status] = "Active"),
+        COUNTROWS(fact_onboarding),
+        0
+    )
+
+-- Average Manager Satisfaction Score
+Avg Manager Satisfaction = 
+    AVERAGE(fact_onboarding[manager_satisfaction_score])
+
+-- Average Ramp Score
+Avg Ramp Score = 
+    AVERAGE(fact_onboarding[ramp_score])
+
+-- Onboarding Completion Rate
+Onboarding Completion Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_onboarding), fact_onboarding[onboarding_status] = "Completed"),
+        COUNTROWS(fact_onboarding),
+        0
+    )
+
+-- Quality of Hire Composite Score
+Quality of Hire Score = 
+    VAR Retention = [Retention Rate 90D]
+    VAR Satisfaction = DIVIDE([Avg Manager Satisfaction], 5, 0)  -- Normalize to 0-1
+    VAR Ramp = DIVIDE([Avg Ramp Score], 100, 0)                  -- Normalize to 0-1
+    RETURN
+        (Retention * 0.4 + Satisfaction * 0.35 + Ramp * 0.25) * 100
+
+-- ============================================================================
+-- TIME INTELLIGENCE MEASURES
+-- ============================================================================
+
+-- Previous Month Applications
+Prev Month Applications = 
+    CALCULATE(
+        [Total Applications],
+        DATEADD(dim_date[date_key], -1, MONTH)
+    )
+
+-- MoM Application Change %
+MoM Application Change = 
+    DIVIDE(
+        [Total Applications] - [Prev Month Applications],
+        [Prev Month Applications],
+        0
+    )
+
+-- Previous Quarter Hires
+Prev Quarter Hires = 
+    CALCULATE(
+        [Total Hires],
+        DATEADD(dim_date[date_key], -1, QUARTER)
+    )
+
+-- QoQ Hire Change %
+QoQ Hire Change = 
+    DIVIDE(
+        [Total Hires] - [Prev Quarter Hires],
+        [Prev Quarter Hires],
+        0
+    )
+
+-- Rolling 3-Month Avg Conversion
+Rolling 3M Avg Conversion = 
+    AVERAGEX(
+        DATESINPERIOD(dim_date[date_key], LASTDATE(dim_date[date_key]), -3, MONTH),
+        [Overall Conversion Rate]
+    )
+
+-- YTD Hires
+YTD Hires = 
+    CALCULATE(
+        [Total Hires],
+        DATESYTD(dim_date[date_key])
+    )
+
+-- ============================================================================
+-- DEPARTMENT & ROLE MEASURES
+-- ============================================================================
+
+-- Headcount Fill Rate
+Fill Rate = 
+    VAR Filled = CALCULATE(COUNTROWS(fact_application), fact_application[current_status] = "Accepted")
+    VAR Required = SUM(dim_job[headcount_required])
+    RETURN
+        DIVIDE(Filled, Required, 0)
+
+-- Department Conversion Rate
+Dept Conversion Rate = 
+    DIVIDE(
+        CALCULATE(COUNTROWS(fact_application), fact_application[current_status] = "Accepted"),
+        COUNTROWS(fact_application),
+        0
+    )
+
+-- Urgent Req Fill Rate
+Urgent Fill Rate = 
+    DIVIDE(
+        CALCULATE(
+            COUNTROWS(fact_application), 
+            fact_application[current_status] = "Accepted",
+            dim_job[is_urgent] = TRUE
+        ),
+        CALCULATE(
+            COUNTROWS(fact_application),
+            dim_job[is_urgent] = TRUE
+        ),
+        0
+    )
+
+-- ============================================================================
+-- FORMATTED DISPLAY MEASURES (for cards/labels)
+-- ============================================================================
+
+-- Display: Conversion Rate
+Display Conversion Rate = FORMAT([Overall Conversion Rate], "0.0%")
+
+-- Display: Avg Time to Hire
+Display Avg TTH = FORMAT([Avg Time to Hire], "0.0") & " days"
+
+-- Display: Offer Accept Rate
+Display Offer Accept Rate = FORMAT([Offer Acceptance Rate], "0.0%")
+
+-- Display: Retention Rate
+Display Retention Rate = FORMAT([Retention Rate 90D], "0.0%")
+
+-- Display: MoM Change with Arrow
+Display MoM Change = 
+    VAR Change = [MoM Application Change]
+    RETURN
+        IF(
+            Change > 0, 
+            "▲ " & FORMAT(Change, "0.0%"),
+            IF(Change < 0, "▼ " & FORMAT(ABS(Change), "0.0%"), "► 0.0%")
+        )

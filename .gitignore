@@ -1,0 +1,31 @@
+# SQL
+*.sql.bak
+*.sql~
+
+# Power BI
+*.pbix
+*.pbit
+*.pbids
+PowerBI Desktop/
+__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data exports
+*.csv
+*.xlsx
+*.parquet
+
+# Environment
+.env
+.env.local
