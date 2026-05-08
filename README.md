@@ -17,7 +17,33 @@ This project demonstrates end-to-end analytics engineering for a Talent Acquisit
 | **Drop-off Analysis** | 12 analytical queries identifying where and why candidates exit |
 | **Conversion Metrics** | 12 queries measuring stage-to-stage and end-to-end conversion |
 | **Power BI Dashboard** | 7-page interactive report with DAX measures |
+| **Dashboard Visuals** | 7 professional dashboard mockups in `assets/` |
 | **Stored Procedures** | Reusable parameterized queries for common analyses |
+
+---
+
+## 🖼️ Dashboard Visuals
+
+### Page 1: Executive Summary
+![Executive Summary](assets/01_executive_summary.png)
+
+### Page 2: Funnel Deep Dive
+![Funnel Deep Dive](assets/02_funnel_deep_dive.png)
+
+### Page 3: Drop-off Analysis
+![Drop-off Analysis](assets/03_drop_off_analysis.png)
+
+### Page 4: Conversion Metrics
+![Conversion Metrics](assets/04_conversion_metrics.png)
+
+### Page 5: Recruiter Performance
+![Recruiter Performance](assets/05_recruiter_performance.png)
+
+### Page 6: Offer & Compensation
+![Offer & Compensation](assets/06_offer_compensation.png)
+
+### Page 7: Quality of Hire
+![Quality of Hire](assets/07_quality_of_hire.png)
 
 ---
 
