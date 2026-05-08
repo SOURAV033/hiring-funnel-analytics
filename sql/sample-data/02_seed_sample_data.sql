@@ -5,6 +5,7 @@
 -- Description: Populates all dimension and fact tables with realistic 
 --              hiring data spanning 18 months (Jan 2024 - Jun 2025).
 --              ~2,500 applications across 40 open positions.
+--              200 candidates seeded; CROSS JOIN produces 2,500+ applications.
 -- ============================================================================
 
 USE hiring_funnel_analytics;
@@ -88,6 +89,29 @@ INSERT INTO dim_candidate (first_name, last_name, email, phone, current_location
 ('Esha', 'Banerjee', 'esha.b@email.com', '+91-11112-66554', 'Kolkata', 9.0, 'Masters', 'ITC', 'LinkedIn'),
 ('Farhan', 'Ali', 'farhan.a@email.com', '+91-22201-77665', 'Bangalore', 5.0, 'Masters', 'Myntra', 'Career Page'),
 ('Geeta', 'Rangan', 'geeta.r@email.com', '+91-33390-88776', 'Chennai', 3.5, 'Bachelors', 'Zoho', 'Referral');
+
+-- ============================================================================
+-- Additional bulk candidates (160+ more to support 2,500+ applications)
+-- ============================================================================
+INSERT INTO dim_candidate (first_name, last_name, email, phone, current_location, years_of_experience, education_level, current_employer, source_channel)
+SELECT
+    CONCAT(ELT(FLOOR(RAND()*20)+1, 'Amit','Neha','Raj','Pooja','Vikram','Sneha','Rahul','Ananya','Karthik','Divya','Suresh','Meera','Deepak','Nisha','Manish','Ritu','Sunil','Kavita','Pradeep','Asha')),
+    CONCAT(ELT(FLOOR(RAND()*20)+1, 'Kumar','Sharma','Patel','Singh','Reddy','Joshi','Nair','Das','Gupta','Iyer','Babu','Menon','Verma','Kapoor','Tiwari','Saxena','Jain','Rao','Shukla','Pillai')),
+    CONCAT('candidate', n, '@email.com'),
+    CONCAT('+91-', LPAD(FLOOR(RAND()*99999), 5, '0'), '-', LPAD(FLOOR(RAND()*99999), 5, '0')),
+    ELT(FLOOR(RAND()*8)+1, 'Bangalore','Mumbai','Delhi NCR','Hyderabad','Pune','Chennai','Kolkata','Ahmedabad'),
+    ROUND(RAND()*18 + 0.5, 1),
+    ELT(FLOOR(RAND()*5)+1, 'Bachelors','Masters','MBA','PhD','CA'),
+    ELT(FLOOR(RAND()*10)+1, 'TCS','Infosys','Wipro','HCL','Cognizant','Tech Mahindra','Fresh Graduate','Accenture','Capgemini','L&T'),
+    ELT(FLOOR(RAND()*5)+1, 'LinkedIn','Referral','Job Board','Career Page','Agency')
+FROM (
+    SELECT a.n + b.n*10 + c.n*100 AS n
+    FROM 
+        (SELECT 0 AS n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
+        (SELECT 0 AS n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b,
+        (SELECT 0 AS n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) c
+) nums
+WHERE n BETWEEN 1 AND 160;
 
 -- ============================================================================
 -- DIM_JOB: 40 open positions across departments
@@ -209,10 +233,9 @@ SELECT
 FROM dim_candidate c
 CROSS JOIN dim_job j
 CROSS JOIN dim_recruiter r
-WHERE c.candidate_id <= 40
-  AND j.job_id <= 40
+WHERE j.job_id <= 40
   AND r.recruiter_id <= 8
-  AND RAND() < 0.08  -- ~2,500 rows
+  AND RAND() < 0.35  -- ~2,800 rows from 200 candidates × 40 jobs × 8 recruiters
 LIMIT 2500;
 
 -- ============================================================================

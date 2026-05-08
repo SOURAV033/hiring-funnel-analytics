@@ -12,7 +12,7 @@ This project demonstrates end-to-end analytics engineering for a Talent Acquisit
 
 | Feature | Description |
 |---|---|
-| **SQL Data Warehouse** | Star schema with 5 dimension tables and 4 fact tables |
+| **SQL Data Warehouse** | Star schema with 6 dimension tables and 4 fact tables |
 | **KPI Tracking** | 12+ KPI queries covering volume, rate, time, and quality metrics |
 | **Drop-off Analysis** | 12 analytical queries identifying where and why candidates exit |
 | **Conversion Metrics** | 12 queries measuring stage-to-stage and end-to-end conversion |
